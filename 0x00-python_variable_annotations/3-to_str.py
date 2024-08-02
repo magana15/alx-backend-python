@@ -10,7 +10,7 @@ def to_str(n: float) -> str:
             n: float
 
         Return:
-            Float of string type  
+            Float of string type
     """
 
     return str(n)

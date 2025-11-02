@@ -49,3 +49,7 @@ def batch_processing(batch_size):
 
         # yield only users > 25
         yield filtered_batch
+
+	if len(batch) < batch_size:
+            # last page reached → stop generator
+            return

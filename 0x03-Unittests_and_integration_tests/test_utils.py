@@ -26,6 +26,7 @@ class TestAccessNestedMap(unittest.TestCase):
             access_nested_map(nested_map, path)
         self.assertEqual(error.exception.args[0], expected_key)
 
+
 class TestGetJson(unittest.TestCase):
     """Tests for utils.get_json"""
 
@@ -34,7 +35,9 @@ class TestGetJson(unittest.TestCase):
         ("http://holberton.io", {"payload": False}),
     ])
     def test_get_json(self, test_url, test_payload):
-        """Test that get_json returns expected payload without real HTTP requests."""
+        """Test that get_json returns
+           expected payload without real 
+           HTTP requests."""
         with patch("utils.requests.get") as mock_get:
             mock_response = Mock()
             mock_response.json.return_value = test_payload
@@ -44,7 +47,6 @@ class TestGetJson(unittest.TestCase):
 
             mock_get.assert_called_once_with(test_url)
 
-            
             self.assertEqual(result, test_payload)
 
 
@@ -53,18 +55,22 @@ class TestMemoize(unittest.TestCase):
 
     def test_memoize(self):
         """Test that a memoized property calls the method only once"""
-        
+
         class TestClass:
+            """start a test class"""
             def a_method(self):
+                """The a_method"""
                 return 42
 
             @memoize
             def a_property(self):
+                """The property method"""
                 return self.a_method()
 
         obj = TestClass()
 
-        with patch.object(TestClass, 'a_method', return_value=42) as mock_method:
+        with patch.object(TestClass, 'a_method', return_value=42)
+        as mock_method:
             result1 = obj.a_property
             result2 = obj.a_property
 

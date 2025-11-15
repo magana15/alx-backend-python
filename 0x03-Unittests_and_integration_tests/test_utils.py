@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""Tests for the memoize decorator in utils.memoize."""
+
+
 import unittest
 from parameterized import parameterized
 from unittest.mock import patch, Mock
@@ -37,7 +40,7 @@ class TestGetJson(unittest.TestCase):
     ])
     def test_get_json(self, test_url, test_payload):
         """Test that get_json returns
-           expected payload without real 
+           expected payload without real
            HTTP requests."""
         with patch("utils.requests.get") as mock_get:
             mock_response = Mock()
@@ -71,7 +74,10 @@ class TestMemoize(unittest.TestCase):
         obj = TestClass()
 
         with patch.object(
-        TestClass, 'a_method', return_value=42) as mock_method:
+            TestClass,
+            'a_method',
+            return_value=42
+        ) as mock_method:
             result1 = obj.a_property
             result2 = obj.a_property
 

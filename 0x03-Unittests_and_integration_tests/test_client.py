@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Unit tests for client.GithubOrgClient.org.
@@ -14,11 +15,11 @@ from client import GithubOrgClient
 class TestGithubOrgClient(unittest.TestCase):
     """Tests for GithubOrgClient."""
 
-    @patch("client.get_json")
     @parameterized.expand([
         ("google",),
         ("abc",),
     ])
+    @patch("client.get_json")
     def test_org(self, mock_get_json, org_name):
         """
         Test that GithubOrgClient.org returns the value returned by get_json

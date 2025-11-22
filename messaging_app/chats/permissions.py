@@ -8,6 +8,9 @@ class IsParticipantOfConversation(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Allow read-only requests (GET, HEAD, OPTIONS) if user is participant
+        if not request.user.is_authenticated:
+            return False
+
         if request.method in SAFE_METHODS:
             return request.user in obj.participants.all()
         

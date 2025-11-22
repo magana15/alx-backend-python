@@ -84,7 +84,8 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Users can only see messages in conversations they participate in
-        return self.queryset.filter(conversation__participants=self.request.user)
+        conversation_id = self.kwargs.get("conversation_pk")
+        return Message.objects.filter(conversation__conversation_id=conversation_id)
 
     def perform_create(self, serializer):
         # Ensure sender is request.user and that user is a participant of the conversation

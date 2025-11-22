@@ -78,15 +78,31 @@ class MessageViewSet(viewsets.ModelViewSet):
     - List: returns messages in conversations the user participates in.
     - Create: requires `conversation` and `message_body`. Sender is set to request.user.
     """
-    queryset = Message.objects.all()
+    queryset = Message.objects.all().order_by("sent_at")
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
-    def get_queryset(self):
-        # Users can only see messages in conversations they participate in
-        conversation_id = self.kwargs.get("conversation_pk")
-        return Message.objects.filter(conversation__conversation_id=conversation_id)
+    filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
+    filterset_class = MessageFilter      # enables the filter params above
+    search_fields = ["message_body"]     # for SearchFilter ?search=...
+    ordering_fields = ["sent_at", "sender__user_id"]  # allow ordering by send time or sender
 
+
+    def get_queryset(self):
+        """
+        Restrict messages to conversations where the requesting user is a participant.
+        Also allow optional nested routing: conversation_pk in kwargs.
+        """
+        user = self.request.user
+        # Base queryset: messages in conversations the user participates in
+        qs = Message.objects.filter(conversation__participants=user).order_by("sent_at")
+
+        # If nested route provides conversation id in kwargs (conversation_pk or conversation_id), restrict further
+        conversation_id = self.kwargs.get("conversation_pk") or self.kwargs.get("conversation_id") or self.request.query_params.get("conversation")
+        if conversation_id:
+            qs = qs.filter(conversation__conversation_id=conversation_id)
+
+        return qs
     def perform_create(self, serializer):
         # Ensure sender is request.user and that user is a participant of the conversation
         request = self.request

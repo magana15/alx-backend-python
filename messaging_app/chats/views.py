@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from .models import Conversation, Message
 from .permissions import IsParticipantOfConversation
+from .pagination import MessagePagination
 from .serializers import (
     ConversationListSerializer,
     ConversationDetailSerializer,
@@ -81,6 +82,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all().order_by("sent_at")
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    pagination_class = MessagePagination
 
     filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
     filterset_class = MessageFilter      # enables the filter params above

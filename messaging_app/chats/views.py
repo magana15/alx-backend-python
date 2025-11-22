@@ -1,9 +1,11 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.permissions import IsAuthenticated, 
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from .models import Conversation, Message
+from .permissions import IsParticipantOfConversation
 from .serializers import (
     ConversationListSerializer,
     ConversationDetailSerializer,
@@ -17,12 +19,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
     - Create: accepts `title` and `participant_ids` (list of user PKs/UUIDs).
       The creating user is always added as a participant.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
         # Show only conversations where the requesting user is a participant
-        return Conversation.objects.filter(participants=self.request.user).distinct()
-
+        return self.queryset.filter(participants=self.request.user)
     def get_serializer_class(self):
         # use a compact serializer for list and full serializer for retrieve/create
         if self.action == "list":
@@ -75,12 +78,13 @@ class MessageViewSet(viewsets.ModelViewSet):
     - List: returns messages in conversations the user participates in.
     - Create: requires `conversation` and `message_body`. Sender is set to request.user.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
-        # Messages only from conversations where the user is a participant
-        return Message.objects.filter(conversation__participants=self.request.user).distinct()
+        # Users can only see messages in conversations they participate in
+        return self.queryset.filter(conversation__participants=self.request.user)
 
     def perform_create(self, serializer):
         # Ensure sender is request.user and that user is a participant of the conversation

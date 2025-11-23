@@ -1,1 +1,1 @@
-This the settings file
+[MIDDLEWARE, chats.middleware.RequestLoggingMiddleware]

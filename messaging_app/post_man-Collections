@@ -1,0 +1,11 @@
+pm.test("List ok", () => pm.response.to.have.status(200));
+const json = pm.response.json();
+const list = json.results || json;
+pm.expect(list.some(c => c.conversation_id === pm.environment.get("conversation_id"))).to.be.true;
+
+pm.test("Messages list ok", () => pm.response.to.have.status(200));
+const json = pm.response.json();
+pm.expect(json).to.have.property("count");
+pm.expect(json).to.have.property("results");
+pm.expect(json.results.length).to.be.at.most(parseInt(pm.environment.get("page_size")));
+

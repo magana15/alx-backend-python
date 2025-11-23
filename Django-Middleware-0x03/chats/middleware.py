@@ -139,3 +139,37 @@ class RestrictAccessByTimeMiddleware:
             )
 
         return self.get_response(request)
+
+class RolePermissionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+
+        # Skip admin site
+        if request.path.startswith("/admin"):
+            return self.get_response(request)
+
+        # If user is not authenticated, deny
+        if not request.user.is_authenticated:
+            return JsonResponse(
+                {"detail": "Authentication required"},
+                status=401
+            )
+
+        # Extract role (assuming user model has 'role' attribute)
+        role = getattr(request.user, "role", None)
+
+        # Allowed roles
+        allowed_roles = ["admin", "moderator"]
+
+        # If not allowed, deny
+        if role not in allowed_roles:
+            return JsonResponse(
+                {"detail": "Forbidden: insufficient role permissions"},
+                status=403
+            )
+
+        # Continue normal execution
+        response = self.get_response(request)
+        return response

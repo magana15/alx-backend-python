@@ -1,6 +1,100 @@
 import logging
 from datetime import datetime
 from django.http import HttpResponseForbidden
+import time
+import threading
+from collections import deque
+from django.http import JsonResponse
+
+class OffensiveLanguageMiddleware:
+    """
+    Rate-limit POST requests to message endpoints by client IP.
+
+    Behavior:
+    - Tracks timestamps of POST requests per IP in an in-memory deque.
+    - Default policy: max_messages=5 within window_seconds=60.
+    - Applies only to POST requests where the path contains '/messages' (adjust as needed).
+    - If limit is exceeded, returns HTTP 429 with a JSON error.
+    """
+
+    def __init__(self, get_response, max_messages: int = 5, window_seconds: int = 60):
+        self.get_response = get_response
+        # Configuration
+        self.max_messages = max_messages
+        self.window_seconds = window_seconds
+
+        # In-memory store: ip -> deque([timestamp, ...])
+        self._store = {}
+        # Lock to protect access to _store across threads (development server uses threads).
+        self._lock = threading.Lock()
+
+    def _get_client_ip(self, request):
+        # Common header used by proxies. If you're behind a proxy set USE_X_FORWARDED_HOST / proper settings.
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        if xff:
+            # X-Forwarded-For may be "client, proxy1, proxy2"
+            ip = xff.split(",")[0].strip()
+        else:
+            ip = request.META.get("REMOTE_ADDR")
+        return ip or "unknown"
+
+    def _prune_deque(self, dq, now):
+        # Remove timestamps older than window_seconds from the left
+        cutoff = now - self.window_seconds
+        while dq and dq[0] < cutoff:
+            dq.popleft()
+
+    def __call__(self, request):
+        # Only enforce on POST requests to message endpoints
+        if request.method == "POST" and "/messages" in request.path:
+            ip = self._get_client_ip(request)
+            now = time.time()
+
+            with self._lock:
+                dq = self._store.get(ip)
+                if dq is None:
+                    dq = deque()
+                    self._store[ip] = dq
+
+                # prune old entries
+                self._prune_deque(dq, now)
+
+                if len(dq) >= self.max_messages:
+                    # rate limit exceeded
+                    retry_after = int(self.window_seconds - (now - dq[0])) if dq else self.window_seconds
+                    body = {
+                        "detail": "Rate limit exceeded: too many messages sent. Try again later.",
+                        "max_messages": self.max_messages,
+                        "window_seconds": self.window_seconds,
+                        "retry_after_seconds": max(retry_after, 0),
+                    }
+                    # 429 Too Many Requests
+                    resp = JsonResponse(body, status=429)
+                    resp["Retry-After"] = str(body["retry_after_seconds"])
+                    return resp
+
+                # record this request
+                dq.append(now)
+
+        # For non-matching requests or when under limit, proceed normally
+        response = self.get_response(request)
+
+        # Optional: periodic cleanup to avoid unbounded growth (very cheap check)
+        # Runs without lock contention for performance; safe to skip in high-load.
+        if int(time.time()) % 60 == 0:
+            # try a quick cleanup pass
+            with self._lock:
+                now = time.time()
+                to_delete = []
+                for ip, dq in self._store.items():
+                    self._prune_deque(dq, now)
+                    if not dq:
+                        to_delete.append(ip)
+                for ip in to_delete:
+                    del self._store[ip]
+
+        return response
+
 
 class RequestLoggingMiddleware:
     """

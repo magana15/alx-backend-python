@@ -11,4 +11,5 @@ MIDDLEWARE = [
 
     # Time restriction middleware
     'chats.middleware.RestrictAccessByTimeMiddleware',
+    "chats.middleware.OffensiveLanguageMiddleware",
 ]

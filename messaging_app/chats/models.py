@@ -110,3 +110,27 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message {self.message_id} from {self.sender}"
+
+
+class Notification(models.Model):
+    """
+    Notification created when a user receives a new message.
+    One Notification per recipient per Message.
+    """
+    notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    message = models.ForeignKey("Message", on_delete=models.CASCADE, related_name="notifications")
+    # optional short summary you may show in UI
+    text = models.TextField(blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user"], name="idx_notification_user"),
+            models.Index(fields=["is_read"], name="idx_notification_read"),
+        ]
+
+    def __str__(self):
+        return f"Notification {self.notification_id} -> {self.user}"

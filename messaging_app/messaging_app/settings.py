@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'chats',
+    'chats.apps.ChatsConfig',
 ]
 
 AUTH_USER_MODEL = "users.User"

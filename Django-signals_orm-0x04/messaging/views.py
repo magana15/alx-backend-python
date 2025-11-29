@@ -97,3 +97,12 @@ def reply_to_message(request, pk):
             return redirect("messaging:conversation_detail", pk=parent.conversation.pk)
     # render a small reply page or return to conversation with a form in a modal
     return render(request, "messaging/reply_form.html", {"parent": parent})
+
+
+#just there
+ messages_qs = (
+            Message.objects
+            .filter(conversation=conversation)
+            .select_related("sender", "receiver", "edited_by", "parent_message")
+            .order_by("timestamp")
+        )

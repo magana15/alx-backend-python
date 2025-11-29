@@ -1,21 +1,39 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 from django.db import transaction
-from .models import Message, Notification
+from .models import Message, MessageHistory
 
-@receiver(post_save, sender=Message)
-def create_notification_on_message(sender, instance: Message, created, **kwargs):
+@receiver(pre_save, sender=Message)
+def log_message_old_content(sender, instance: Message, **kwargs):
     """
-    When a new Message is created, create a Notification for the receiver.
+    Before a Message is saved, if it already exists in DB and its content is changing,
+    store the old content in MessageHistory.
+
+    If the view has set instance._edited_by (a convention we use below), we store that as editor.
     """
-    if not created:
+    if instance.pk is None:
         return
 
-    # ensure message save transaction has committed before creating the notification
-    def _create_notification():
-        Notification.objects.create(
-            user=instance.receiver,
-            message=instance,
-            verb="sent you a message"
+    try:
+        old = Message.objects.get(pk=instance.pk)
+    except Message.DoesNotExist:
+        return
+
+    if old.content == instance.content:
+        return
+
+    editor = getattr(instance, "_edited_by", None)
+
+    def _create_history():
+        MessageHistory.objects.create(
+            message=old,
+            old_content=old.content,
+            edited_at=timezone.now(),
+            editor=editor
         )
-    transaction.on_commit(_create_notification)
+
+        instance.edited = True
+        instance.edited_at = timezone.now()
+
+    transaction.on_commit(_create_history)

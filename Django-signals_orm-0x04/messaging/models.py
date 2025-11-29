@@ -4,6 +4,13 @@ from django.utils import timezone
 
 User = settings.AUTH_USER_MODEL
 
+class Conversation(models.Model):
+    title = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return self.title or f"Conversation {self.pk}"
+
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
@@ -19,6 +26,14 @@ class Message(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="edited_messages"
+    )
+    parent_message = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="replies",
+        help_text="If set, this message is a reply to parent_message"
     )
 
     class Meta:

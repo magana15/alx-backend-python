@@ -1,15 +1,38 @@
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Message
+from .models import Message, Conversation
 
 #deleting
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.db import transaction
 from django.contrib import messages
+from .utils import build_message_tree
 
+class ConversationDetailView(DetailView):
+    model = Conversation
+    template_name = "messaging/conversation_detail.html"
+    context_object_name = "conversation"
+
+    def get_queryset(self):
+        # optionally restrict to conversations the request.user participates in
+        return super().get_queryset()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        conversation = ctx["conversation"]
+
+        messages_qs = (
+            Message.objects
+            .filter(conversation=conversation)
+            .select_related("sender", "receiver", "edited_by", "parent_message")
+            .order_by("timestamp")
+        )
+
+        ctx["threaded_messages"] = build_message_tree(messages_qs)
+        return ctx
 
 class MessageEditView(LoginRequiredMixin, UpdateView):
     model = Message
@@ -56,3 +79,21 @@ def delete_user_view(request):
         return redirect("home")  # change to your site's home URL name
 
     return render(request, "messaging/confirm_delete.html", {"user": request.user})
+
+
+@login_required
+def reply_to_message(request, pk):
+    parent = get_object_or_404(Message, pk=pk)
+    if request.method == "POST":
+        content = request.POST.get("content", "").strip()
+        if content:
+            msg = Message.objects.create(
+                conversation=parent.conversation,
+                sender=request.user,
+                receiver=parent.sender if parent.sender != request.user else parent.receiver,
+                content=content,
+                parent_message=parent
+            )
+            return redirect("messaging:conversation_detail", pk=parent.conversation.pk)
+    # render a small reply page or return to conversation with a form in a modal
+    return render(request, "messaging/reply_form.html", {"parent": parent})

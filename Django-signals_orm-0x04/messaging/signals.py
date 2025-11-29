@@ -2,7 +2,7 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import transaction
-from .models import Message 
+from .models import Message, MessageHistory 
 
 @receiver(pre_save, sender=Message)
 def log_message_old_content(sender, instance: Message, **kwargs):

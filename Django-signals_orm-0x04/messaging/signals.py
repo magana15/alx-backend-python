@@ -2,16 +2,11 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import transaction
-from .models import Message, MessageHistory
+from .models import Message 
 
 @receiver(pre_save, sender=Message)
 def log_message_old_content(sender, instance: Message, **kwargs):
-    """
-    Before a Message is saved, if it already exists in DB and its content is changing,
-    store the old content in MessageHistory.
-
-    If the view has set instance._edited_by (a convention we use below), we store that as editor.
-    """
+    # only interested in updates to existing messages
     if instance.pk is None:
         return
 
@@ -20,9 +15,11 @@ def log_message_old_content(sender, instance: Message, **kwargs):
     except Message.DoesNotExist:
         return
 
+    # if content unchanged, do nothing
     if old.content == instance.content:
         return
 
+    # editor convention set by the view: instance._edited_by
     editor = getattr(instance, "_edited_by", None)
 
     def _create_history():
@@ -33,7 +30,10 @@ def log_message_old_content(sender, instance: Message, **kwargs):
             editor=editor
         )
 
+        # update instance so the save persists these values
         instance.edited = True
         instance.edited_at = timezone.now()
+        # set the foreign key on the message to point to the latest editor
+        instance.edited_by = editor
 
     transaction.on_commit(_create_history)

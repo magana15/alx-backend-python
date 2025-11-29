@@ -7,7 +7,6 @@ from .models import Message, Notification
 def create_notification_on_message(sender, instance: Message, created, **kwargs):
     """
     When a new Message is created, create a Notification for the receiver.
-    Use transaction.on_commit to avoid creating notifications for rolled-back transactions.
     """
     if not created:
         return
